@@ -1,0 +1,64 @@
+# Publishes carbium to crates.io when a GitHub release tagged v<version> is published, for example v0.1.1, through
+# trusted publishing (OIDC, no token anywhere): crates.io's trusted publisher for the crate names this repository, this
+# workflow file and environment crates-io, so only the publish job, the one job in that environment, can get a
+# short-lived token, which rust-lang/crates-io-auth-action revokes when the job ends. Tests and a packaging dry run
+# come first in a job with no write token; a tag that is not v and Cargo.toml's version stops there, and a version
+# already in the crates.io index is not published again.
+name: publish
+on:
+  release:
+    types: [published]
+permissions: {}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: v
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          ver="$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)"
+          test "$TAG" = "v$ver" || { echo "tag $TAG does not match Cargo.toml's version $ver"; exit 1; }
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+      - run: scripts/leak-check.sh HEAD
+      - run: rustup toolchain install 1.100.0 --profile minimal && rustup default 1.100.0
+      - run: cargo test --locked --all-features -- --test-threads=1
+      - run: cargo publish --locked --dry-run
+
+  publish:
+    needs: check
+    runs-on: ubuntu-latest
+    environment: crates-io
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.100.0 --profile minimal && rustup default 1.100.0
+      - id: published
+        env:
+          VER: ${{ needs.check.outputs.version }}
+        run: |
+          # the sparse index lists every published version, one JSON line each
+          if curl -fsS https://index.crates.io/ca/rb/carbium | grep -q "\"vers\":\"$VER\""; then echo "exists=true"; else echo "exists=false"; fi >> "$GITHUB_OUTPUT"
+      - if: steps.published.outputs.exists == 'true'
+        run: echo "carbium ${{ needs.check.outputs.version }} is on crates.io already"
+      - if: steps.published.outputs.exists != 'true'
+        id: auth
+        uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
+      - if: steps.published.outputs.exists != 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: cargo publish --locked
