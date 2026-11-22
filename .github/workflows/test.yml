@@ -1,0 +1,36 @@
+name: test
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: ["1.100.0", "1.89.0"] # the pinned stable and the declared minimum
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install ${{ matrix.toolchain }} --profile minimal --component clippy,rustfmt && rustup default ${{ matrix.toolchain }}
+      - run: cargo test --locked -- --test-threads=1
+      - run: cargo test --locked --all-features -- --test-threads=1
+      - if: matrix.toolchain == '1.100.0'
+        run: cargo clippy --locked --all-features --all-targets -- -D warnings
+      - if: matrix.toolchain == '1.100.0'
+        run: cargo package --locked --list
+  generated:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: carbium-sh/spec
+          path: spec-repo
+          persist-credentials: false
+      - run: rustup toolchain install 1.100.0 --profile minimal --component rustfmt && rustup default 1.100.0
+      - run: python3 scripts/generate.py spec-repo/openrpc.json && cargo fmt -- src/gen.rs && git diff --exit-code src/gen.rs
+      - run: cmp spec/served.json spec-repo/served.json && cmp spec/examples.json spec-repo/examples.json
