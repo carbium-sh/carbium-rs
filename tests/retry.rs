@@ -5,8 +5,8 @@
 mod common;
 
 use carbium::{
-    Carbium, ClientOptions, Code, Error, ErrorKind, JsonRpcCall, RetryContext, RetryOptions,
-    RetryPlan, STANDARD, Value, decide_retry,
+    Carbium, ClientOptions, Code, Error, ErrorKind, JsonRpcCall, QuoteParams, QuoteParamsAmountIn,
+    RetryContext, RetryOptions, RetryPlan, STANDARD, Value, decide_retry,
 };
 use common::{Planted, Reply, Step, key, rpc_err, rpc_ok};
 use serde_json::json;
@@ -751,5 +751,37 @@ async fn a_hint_of_u64_max_comes_back_at_once_on_both_paths() {
         t0.elapsed() < std::time::Duration::from_secs(2),
         "took {:?}",
         t0.elapsed()
+    );
+}
+
+#[tokio::test]
+async fn a_quote_with_no_route_under_the_account_cap_is_a_route_error_sent_once() {
+    let s = Planted::start(steps(vec![
+        rpc_err(
+            200,
+            -32055,
+            "no route fits the account cap",
+            Some(json!({ "why": "accounts_over_cap" })),
+        ),
+        rpc_ok(json!({})),
+    ]))
+    .await;
+    let mut ask = QuoteParams::new(
+        "So11111111111111111111111111111111111111112",
+        "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        QuoteParamsAmountIn::Text("1".into()),
+        50,
+    );
+    ask.swap_tag = Some(1);
+    let e = client(&s, Some(no_jitter())).quote(&ask).await.unwrap_err();
+    assert_eq!(
+        (
+            e.kind(),
+            e.code(),
+            e.http_status(),
+            e.is_retryable(),
+            s.count()
+        ),
+        (ErrorKind::Route, Some(&Code::Number(-32055)), 200, false, 1)
     );
 }

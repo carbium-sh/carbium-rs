@@ -3,7 +3,10 @@
 
 mod common;
 
-use carbium::{Carbium, ClientOptions, Commitment, ErrorKind, PricesParams, Value};
+use carbium::{
+    Carbium, ClientOptions, Commitment, ErrorKind, PricesParams, QuoteParams, QuoteParamsAmountIn,
+    QuoteParamsIntegratorFeeBps, Value,
+};
 use common::{Planted, key, rpc_ok};
 use serde_json::json;
 
@@ -74,4 +77,56 @@ async fn a_wrong_type_names_its_field_path_and_keeps_the_raw_answer() {
     assert_eq!(e.kind(), ErrorKind::Upstream);
     assert!(e.message().contains("at `value.blockhash`"), "{e}");
     assert_eq!(e.data(), Some(&raw));
+}
+
+#[tokio::test]
+async fn a_quote_sends_the_account_cap_and_the_integrator_fee_by_their_long_names_and_types_the_fee()
+ {
+    const SOL: &str = "So11111111111111111111111111111111111111112";
+    const USDC: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+    const WALLET: &str = "11111111111111111111111111111111";
+    let quote = json!({ "srcAmountIn": "100000000", "destAmountOut": "14250000", "minAmountOut": "14178750", "slippageBps": 50,
+        "swapMode": "ExactIn", "inputMint": SOL, "outputMint": USDC, "routePlan": [], "quoteId": "q",
+        "integratorFee": { "amount": "35625", "feeBps": 25, "mint": USDC, "account": WALLET } });
+    let s = Planted::start(vec![rpc_ok(quote.clone()).into(), rpc_ok(quote).into()]).await;
+    let c = Carbium::new(ClientOptions {
+        api_key: Some(key()),
+        endpoint: s.url.clone(),
+        retry: None,
+        ..Default::default()
+    })
+    .unwrap();
+    let plain = QuoteParams::new(SOL, USDC, QuoteParamsAmountIn::Text("100000000".into()), 50);
+    let mut ask = plain.clone();
+    ask.max_accounts = Some(8);
+    ask.integrator_fee_bps = Some(QuoteParamsIntegratorFeeBps::Number(25));
+    ask.integrator_fee_account = Some(WALLET.into());
+    let q = c.quote(&ask).await.unwrap();
+    c.quote(&plain).await.unwrap();
+    let base =
+        json!({ "src_mint": SOL, "dst_mint": USDC, "amount_in": "100000000", "slippage_bps": 50 });
+    let mut asked = base.clone();
+    asked["maxAccounts"] = json!(8);
+    asked["integrator_fee_bps"] = json!(25);
+    asked["integrator_fee_account"] = json!(WALLET);
+    let sent: Vec<Value> = s
+        .seen()
+        .iter()
+        .map(|r| r.json()["params"].clone())
+        .collect();
+    assert_eq!(sent, vec![asked, base]);
+    let fee = q.integrator_fee.as_ref().unwrap();
+    assert_eq!(
+        (
+            fee.amount.as_str(),
+            fee.fee_bps.as_u64(),
+            fee.mint.as_str(),
+            fee.account.as_str()
+        ),
+        ("35625", Some(25), USDC, WALLET)
+    );
+    assert!(
+        !q.extra.contains_key("integratorFee"),
+        "the fee is typed, not left in extra"
+    );
 }

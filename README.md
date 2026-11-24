@@ -14,6 +14,7 @@ cargo add carbium
 cargo add tokio --features macros,rt-multi-thread
 ```
 Carbon Stream, WebSocket subscriptions and webhook checks are features: `cargo add carbium --features stream,ws,webhooks`.
+To update: `cargo update -p carbium`; each version's notes are at https://github.com/carbium-sh/carbium-rs/releases.
 
 ## Quick start
 
@@ -98,8 +99,29 @@ let signature = client.send_transaction(&signed_base64, Some(&send)).await?;
 # }
 ```
 
-The same quote is also served as REST: `client.cq1_quote(src_mint, dst_mint, amount_in, slippage_bps)` gets
-`GET /cq1/quote` with the key in `x-api-key`, and answers one object of strings (`Cq1Quote`).
+A quote also takes a cap on the accounts the swap instruction may carry and your own integrator fee:
+
+```rust,no_run
+# async fn run(client: carbium::Carbium, sol: String, usdc: String, treasury: String) -> carbium::Result<()> {
+use carbium::{QuoteParams, QuoteParamsAmountIn, QuoteParamsIntegratorFeeBps};
+
+let mut ask = QuoteParams::new(sol, usdc, QuoteParamsAmountIn::Text("100000000".into()), 50);
+ask.max_accounts = Some(32);
+ask.integrator_fee_bps = Some(QuoteParamsIntegratorFeeBps::Number(25));
+ask.integrator_fee_account = Some(treasury);
+let capped = client.quote(&ask).await?;
+// capped.integrator_fee is { amount, fee_bps, mint, account }; dest_amount_out and min_amount_out are what the
+// trader receives after it.
+# Ok(())
+# }
+```
+
+The fee is taken in the token `integrator_fee.mint` names. A token fee goes to that wallet's associated token account,
+which must already exist; a fee that cannot be paid is skipped and the swap still lands. A quote with no route under
+`max_accounts` answers `-32055` (`ErrorKind::Route`): change the ask, a retry gives the same answer.
+
+`GET /cq1/quote` is the old quote path, kept for callers already on it (`client.cq1_quote`, deprecated); new code uses
+`quote`.
 
 Decode `swap.transaction` from base64, sign it with your own wallet (for example as a `VersionedTransaction` from
 solana-sdk), encode it as base64 again and pass it to `send_transaction` with `encoding: base64` and

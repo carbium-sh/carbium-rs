@@ -1,5 +1,6 @@
 //! The REST quote, GET /cq1/quote, against a planted server: what it sends, the plain-text 400, a retried 429 and a
 //! key refusal in the door's JSON-RPC error shape.
+#![allow(deprecated)] // the old quote path is still served and still tested
 
 mod common;
 

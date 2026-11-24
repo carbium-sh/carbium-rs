@@ -204,9 +204,7 @@ fn kind_of(status: u16, code: Option<i64>, reason: Option<&str>) -> ErrorKind {
         429 => ErrorKind::RateLimit,
         400 | 413 | 425 | 501 => ErrorKind::Request,
         200 => match code {
-            Some(c) if (-32054..=-32051).contains(&c) || (-32099..=-32060).contains(&c) => {
-                ErrorKind::Route
-            }
+            Some(c) if (-32099..=-32051).contains(&c) => ErrorKind::Route,
             Some(c) if REQUEST_CODES.contains(&c) => ErrorKind::Request,
             _ if reason.is_some_and(|r| REQUEST_REASONS.contains(&r)) => ErrorKind::Request,
             _ => ErrorKind::Node,

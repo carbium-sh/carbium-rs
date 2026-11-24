@@ -63,8 +63,12 @@ pub const REST_ROUTES: &[&str] = &["GET /cq1/quote"];
 const LABEL: &str = "GET /cq1/quote";
 
 impl Carbium {
-    /// `GET /cq1/quote`: a quote for `amount_in` base units of `src_mint` into `dst_mint`. A parameter fault is a
-    /// Request error with the service's text; a key or plan refusal maps as for `quote`.
+    /// `GET /cq1/quote`, the old quote path, kept for callers already on it: a quote for `amount_in` base units of
+    /// `src_mint` into `dst_mint`. A parameter fault is a Request error with the service's text; a key or plan refusal
+    /// maps as for `quote`.
+    #[deprecated(
+        note = "GET /cq1/quote is the old quote path, kept for callers already on it; new code uses quote"
+    )]
     pub async fn cq1_quote(
         &self,
         src_mint: &str,

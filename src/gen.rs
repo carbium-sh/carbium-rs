@@ -1093,6 +1093,12 @@ pub struct Quote {
         skip_serializing_if = "Option::is_none"
     )]
     pub platform_fee: Option<QuotePlatformFee>,
+    #[serde(
+        rename = "integratorFee",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub integrator_fee: Option<QuoteIntegratorFee>,
     #[serde(rename = "txVersion", default, skip_serializing_if = "Option::is_none")]
     pub tx_version: Option<Number>,
     #[serde(rename = "swapTag", default, skip_serializing_if = "Option::is_none")]
@@ -1117,6 +1123,16 @@ pub struct QuotePlatformFee {
     #[serde(rename = "feeBps")]
     pub fee_bps: Number,
     pub mint: Base58,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct QuoteIntegratorFee {
+    pub amount: String,
+    #[serde(rename = "feeBps")]
+    pub fee_bps: Number,
+    pub mint: Base58,
+    pub account: Base58,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1158,6 +1174,16 @@ pub struct QuoteParams {
     pub tx_version: Option<u8>,
     #[serde(rename = "swapTag", default, skip_serializing_if = "Option::is_none")]
     pub swap_tag: Option<u8>,
+    #[serde(
+        rename = "maxAccounts",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub max_accounts: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub integrator_fee_bps: Option<QuoteParamsIntegratorFeeBps>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub integrator_fee_account: Option<Base58>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1182,6 +1208,14 @@ pub enum QuoteParamsDex {
 pub enum QuoteParamsDexes {
     Text(String),
     List(Vec<String>),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+#[non_exhaustive]
+pub enum QuoteParamsIntegratorFeeBps {
+    Number(u64),
+    Text(String),
 }
 
 pub type RecordBase58NumberArray = BTreeMap<String, Vec<Number>>;
@@ -2748,6 +2782,9 @@ impl QuoteParams {
             dexes: None,
             tx_version: None,
             swap_tag: None,
+            max_accounts: None,
+            integrator_fee_bps: None,
+            integrator_fee_account: None,
         }
     }
 }

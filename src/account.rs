@@ -27,7 +27,7 @@ pub enum KeyScope {
 }
 
 /// A per-method-class ceiling on a service key. `method_class` is one of o1_cached, bounded_read, bounded_slot,
-/// write_send, compute, bounded_disk, range, scan, gpa.
+/// write_send, compute, bounded_disk, range, scan, gpa or das (the 10 DAS methods together).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MethodCap {
     pub method_class: String,

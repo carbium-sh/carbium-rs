@@ -144,6 +144,7 @@ async fn the_rest_routes_are_the_served_ones_and_each_call_takes_its_route() {
         ..Default::default()
     })
     .unwrap();
+    #[allow(deprecated)]
     let _ = client.cq1_quote("a", "b", 1, 50).await; // an empty answer need not read as a quote; the route is what counts
     let seen = &server.seen()[0];
     let route = format!("{} {}", seen.method, seen.path.split('?').next().unwrap());

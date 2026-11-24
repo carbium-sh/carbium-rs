@@ -41,7 +41,7 @@ async fn case_10_the_key_travels_in_x_api_key_only_with_the_client_header_and_ne
     assert_eq!(req.headers.get("x-api-key"), Some(&key()));
     assert_eq!(
         req.headers.get("solana-client").map(String::as_str),
-        Some("rust/carbium@0.1.0")
+        Some("rust/carbium@0.1.1")
     );
     assert_eq!((req.method.as_str(), req.path.as_str()), ("POST", "/"));
     assert_eq!(req.headers.get("authorization"), None);
