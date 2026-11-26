@@ -18,8 +18,11 @@ To update: `cargo update -p carbium`; each version's notes are at https://github
 
 ## Quick start
 
-A service key (`c_serv_…`) comes from the dashboard at carbium.sh. Without one the call reaches the door and is refused
-with 401, which the quick start prints.
+A service key (`c_serv_…`) comes from the dashboard at carbium.sh. Without one, services.carbium.sh answers twelve
+methods at 30 calls a minute per IP address: `quote`, `swap`, `prices`, `health`
+and the reads `get_health`, `get_version`, `get_slot`, `get_block_height`, `get_epoch_info`, `get_latest_blockhash`,
+`is_blockhash_valid` and `get_genesis_hash`. Every other call is refused with 401, which
+the quick start's `Err` arm prints.
 
 ```rust,no_run
 use carbium::{Carbium, ClientOptions};
@@ -81,7 +84,8 @@ name a mint, keep `limit` small, and read the method notes at https://carbium.sh
 
 ### Swap: quote, build, sign with your own wallet, send
 
-The quote plane needs the account's quote module (free plan) and a key with the quote scope.
+With a key, the quote plane needs the account's quote module (free plan) and the quote scope on the key. With no key
+it answers at the limit above.
 
 ```rust,no_run
 # async fn run(client: carbium::Carbium, sol: String, usdc: String, wallet: String) -> carbium::Result<()> {

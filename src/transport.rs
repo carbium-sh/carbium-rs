@@ -57,7 +57,8 @@ pub const LIMITS: Limits = Limits {
 /// Options for [`Carbium::new`].
 #[derive(Clone)]
 pub struct ClientOptions {
-    /// The full service key, c_serv_…. None or empty, the call reaches the door keyless and is refused with 401.
+    /// The full service key, c_serv_…. None or empty, calls go out with no key: the service answers its twelve public
+    /// methods, 30 calls a minute per IP address, and refuses every other call with 401.
     pub api_key: Option<String>,
     /// Default https://services.carbium.sh.
     pub endpoint: String,
